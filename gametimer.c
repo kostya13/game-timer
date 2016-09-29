@@ -54,7 +54,7 @@ typedef struct counter_struct
 //формула расчета коэффициента для требуемой звуковой частоты
 // OCRA = F_CPU / (2 * N * FREQ) - 1
 // F_CPU - частота процессора, N - делитель счетчика, FREQ - заданная застота звука
-const Beep  start_beep = {200, 50}; // сигнал старт
+const Beep start_beep = {200, 50}; // сигнал старт
 const Beep player_beep = {25, 100}; // сигнал, когда игрок нажал кнопку
 const Beep false_beep = {150, 200}; // сигнал "Фальшстарт"
 const Beep timerend_beep = {100, 100}; // сигнал "таймер закончил отсчет"
