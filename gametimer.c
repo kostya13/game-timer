@@ -64,7 +64,55 @@ const uint16_t TICS_IN_SECOND = (TIMER_FREQ - 1); // количество отч
 volatile uint8_t current_beep;
 volatile Counter counter;
 
-const int8_t led_digits[] = {64, 121, 36, 48, 25, 18, 2, 120, 0, 16};
+
+/*
+ Обозначение сегментов в индикаторе
+  a
+  -
+f|g|b
+  -
+e|d|c
+  -
+
+Включенные сегменты для каждой цифры
+0 - abcdef
+1 - bc
+2 - abedg
+3 - abcdg
+4 - bcfg
+5 - acdfg
+6 - acdefg
+7 - abc
+8 - abcdefg
+9 - abcdfg
+*/
+//                             gfedcba-
+const int8_t led_digits[] = {0b01111110,  // 0
+                             0b00001100,  // 1
+                             0b10110110,  // 2
+                             0b10011110,  // 3
+                             0b11001100,  // 4
+                             0b11011010,  // 5
+                             0b11111010,  // 6
+                             0b00001110,  // 7
+                             0b11111110,  // 8
+                             0b11011110}; // 9
+                             
+
+
+inline void beep_start(Beep beep)
+{
+  OCR0 = beep.freq;
+  current_beep = beep.duration;
+  START_BEEP();
+
+}
+
+void led_show(void)
+{
+    PORTB = led_digits[counter.current / 10];
+    PORTD = led_digits[counter.current % 10];
+}
 
 ISR (TIMER1_COMPA_vect)
 {
@@ -72,19 +120,25 @@ ISR (TIMER1_COMPA_vect)
 
 ISR (TIMER1_COMPB_vect)
 {
+    if( current_beep > 0)
+    {
+        current_beep--;
+        return;
+    }
+    STOP_BEEP();
 }
 
 int main(void)
 {
   
-  DDRA = 0xC0;// 0-5 ножки на вход; 6-7 на выход
-  PORTA = 0xC0; // к ножкам 6-7 подключить подтягивающие резисторы
+  DDRA = 0x00;// 0 - 7 ножки на вход
+  PORTA = 0xFF; // к ножкам 0-7 подключить подтягивающие резисторы
 
   DDRB = 0xFF; // все ножки на выход
   PORTB = 0x00; // все ножки в логический 0
 
-  DDRC = 0xFO; // 0-4 ножки на вход; 5-7 ножки на выход
-  PORTC = 0x00; // все ножки в логический 0
+  DDRC = 0xF0; // 0-4 ножки на вход; 5-7 ножки на выход
+  PORTC = 0x0F; // все ножки в логический 0
 
   DDRD = 0xFE; // 0 ножка на вход; 1-7 ножки на выход;
   PORTB = 0x01; // 0 ножку подключить резистор; 1-7 ножки в логический 0
@@ -96,7 +150,6 @@ int main(void)
   TCCR0 =  _BV(WGM01); // режим CTC 
   TCCR0 |= _BV(CS01); // делитель частоты на 8
   TCNT0 = 0x00; // стартовое значение счетчика
-  OCR0 = 130; // начальное значение регистра сравнения
 
   // Настройка таймера 1
   TCCR1B =_BV(WGM12) | _BV(CS10); //режим CTC | делитель частоты на 1
@@ -112,6 +165,63 @@ int main(void)
   // разрешение прерывания от таймеров
   TIMSK = _BV(OCIE1A) | _BV(OCIE1B);
 
+  sei();
+  uint8_t state = STATE_WAIT;
+  counter.current = 60;
+  led_show();
+  while(1)
+  {
+      uint8_t key = PINA ^ 0xFF;
+      switch(state)
+      {
+      case STATE_WAIT:
 
+          if (key == 1 )
+          {
+              counter.current = 60;
+              led_show();
+          }
+          else if (key == 2 )
+          {
+              counter.current = 30;
+              led_show();
+          }
+          else if (key == 4 )
+          {
+              counter.current = 10;
+              led_show();
+          }
+          else if (key == 8 )
+          {
+              counter.current = 5;
+              led_show();
+          }
+          else if (key == 16 )
+          {
+              state = STATE_COUNTING;
+              set_bit(PORTE, 1);
+              beep_start(start_beep);
+          }
+              
+          break;
+      
+      case STATE_COUNTING:
+          if (key == 32 )
+          {
+              state = STATE_WAIT;
+              reset_bit(PORTE, 1);              
+              counter.current = 60;
+              led_show();
+          }
+          break;
+
+      case STATE_STOP:
+          break;
+
+      default:
+          state = STATE_WAIT;
+      }
+  
+  }
   return 0;
 }
