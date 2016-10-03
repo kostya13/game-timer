@@ -175,7 +175,7 @@ void check_reset_button(uint8_t key, uint8_t last_timer, STATES_t* state)
 }
 
 
-void check_player_buttons(uint8_t key, STATES_t* state)
+void check_player_buttons(uint8_t key)
 {
     switch(key)
     {
@@ -191,12 +191,6 @@ void check_player_buttons(uint8_t key, STATES_t* state)
         case button_player4:
             set_bit(PORTC, light_player4);              
               break;
-    }
-    if(key)
-    {
-        counter.finished = YES;
-        beep_start(player_beep);
-        *state = STATE_STOP;
     }
 }
 
@@ -278,13 +272,13 @@ int main(void)
   led_show();
   while(1)
   {
+      master_key = PINA ^ 0xFF;
+      player_key = (PINC & 0x0F ) ^ 0x0F;
+ 
       switch(state)
       {
           case STATE_WAIT:
-              master_key = PINA ^ 0xFF;
-              player_key = (PINC & 0x0F ) ^ 0x0F;
               check_time_keys(master_key);
-
               if(master_key == button_start)
               {
                   set_bit(PORTE, light_start);
@@ -297,6 +291,7 @@ int main(void)
               }
               if(player_key)
               {
+                  check_player_buttons(player_key);
                   set_bit(PORTE, light_false);
                   beep_start(false_beep);
                   state = STATE_STOP;
@@ -304,8 +299,6 @@ int main(void)
               break;
 
           case STATE_COUNTING:
-              master_key = PINA ^ 0xFF;
-              player_key = (PINC & 0x0F ) ^ 0x0F;
               check_reset_button(master_key, last_timer, &state);
               if(counter.finished == YES)
               {
@@ -313,16 +306,23 @@ int main(void)
                   reset_bit(PORTE, light_start);              
                   counter.current = last_timer;
                   state = STATE_STOP;
+                  break;
+              }
+
+              if(player_key)
+              {
+                  check_player_buttons(player_key);
+                  reset_bit(PORTE, light_start);
+                  counter.finished = YES;
+                  beep_start(player_beep);
+                  state = STATE_STOP;
               }
               if(counter.current != counter.last)
               {
                   led_show();
               }
-              check_player_buttons(player_key, &state);
               break;
-
           case STATE_STOP:
-              master_key = PINA ^ 0xFF;
               check_reset_button(master_key, last_timer, &state);
               break;
 
