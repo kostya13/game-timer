@@ -45,7 +45,7 @@ typedef struct counter_struct
   uint16_t fraction; // отсчитывает доли для current
 } Counter;
 
-enum STATES {STATE_COUNTING, STATE_WAIT, STATE_STOP};
+typedef enum STATES {STATE_COUNTING, STATE_WAIT, STATE_STOP} STATES_t;
 // STATE_COUNTING - режим при котором таймер запущен
 // STATE_WAIT - режим ожидания старта
 // STATE_STOP - режим остановки, полсе того как игрок нажал кнопку или закончилось время
@@ -66,10 +66,16 @@ const uint8_t time2 = 30;
 const uint8_t time3 = 10;
 const uint8_t time4 = 5;
 
-const uint8_t button_time1 = 1;
-const uint8_t button_time2 = 2;
-const uint8_t button_time3 = 4;
-const uint8_t button_time4 = 8;
+enum BUTTON_TIMES {button_time1 = 1,
+                   button_time2 = 2,
+                   button_time3 = 4,
+                   button_time4 = 8};
+
+enum BUTTON_PLAYER {button_player1 = 1,
+                    button_player2 = 2,
+                    button_player3 = 4,
+                    button_player4 = 8};
+
 const uint8_t button_start = 16;
 const uint8_t button_reset = 32;
 
@@ -78,12 +84,8 @@ const uint8_t light_false = 2;
 const uint8_t light_player1 = 4;
 const uint8_t light_player2 = 5;
 const uint8_t light_player3 = 6;
-const uint8_t light_player3 = 7;
+const uint8_t light_player4 = 7;
 
-const uint8_t button_player1 = 1;
-const uint8_t button_player2 = 2;
-const uint8_t button_player3 = 4;
-const uint8_t button_player4 = 8;
 /*
  Обозначение сегментов в индикаторе
   a
@@ -136,7 +138,7 @@ void led_show(void)
     PORTD = led_digits[counter.current % 10];
 }
 
-void check_time_keys(uint8_t key)
+void check_time_keys(const uint8_t key)
 {
     switch(key)
     {
@@ -157,7 +159,7 @@ void check_time_keys(uint8_t key)
         led_show();
 }
 
-void check_reset_button(uint8_t key, uint8_t last_timer, STATE& state)
+void check_reset_button(uint8_t key, uint8_t last_timer, STATES_t* state)
 {
     if (key == button_reset)
     {
@@ -167,12 +169,12 @@ void check_reset_button(uint8_t key, uint8_t last_timer, STATE& state)
             reset_bit(PORTC, i);              
         counter.current = last_timer;
         led_show();
-        state = STATE_WAIT;
+        *state = STATE_WAIT;
     }
 }
 
 
-void check_player_buttons(uint8_t key, STATE& state)
+void check_player_buttons(uint8_t key, STATES_t* state)
 {
     switch(key)
     {
@@ -192,8 +194,8 @@ void check_player_buttons(uint8_t key, STATE& state)
     if(key)
     {
         counter.finished = YES;
-        start_beep(player_beep);
-        state = STATE_STOP;
+        beep_start(player_beep);
+        *state = STATE_STOP;
     }
 }
 
@@ -203,7 +205,7 @@ ISR (TIMER1_COMPA_vect)
       return;
   if(counter.current > 0)
   {
-    if (counter.fraction == MAIN_TIMER_MAX)
+    if (counter.fraction == TICS_IN_SECOND)
     {
       counter.fraction = 0;
       counter.last = counter.current;
@@ -303,10 +305,11 @@ int main(void)
           case STATE_COUNTING:
               master_key = PINA ^ 0xFF;
               player_key = (PINC & 0x0F ) ^ 0x0F;
-              check_reset_button(master_key, last_timer, state)
+              check_reset_button(master_key, last_timer, &state);
               if(counter.finished == YES)
               {
                   beep_start(timerend_beep);
+                  reset_bit(PORTE, light_start);              
                   counter.current = last_timer;
                   state = STATE_STOP;
               }
@@ -314,12 +317,12 @@ int main(void)
               {
                   led_show();
               }
-              check_player_buttons(player_key, state);
+              check_player_buttons(player_key, &state);
               break;
 
           case STATE_STOP:
               master_key = PINA ^ 0xFF;
-              check_reset_button(master_key, last_timer, state)
+              check_reset_button(master_key, last_timer, &state);
               break;
 
           default:
