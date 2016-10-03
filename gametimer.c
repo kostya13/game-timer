@@ -79,12 +79,12 @@ enum BUTTON_PLAYER {button_player1 = 1,
 const uint8_t button_start = 16;
 const uint8_t button_reset = 32;
 
-const uint8_t light_start = 1;
-const uint8_t light_false = 2;
-const uint8_t light_player1 = 4;
-const uint8_t light_player2 = 5;
-const uint8_t light_player3 = 6;
-const uint8_t light_player4 = 7;
+const uint8_t light_start = PORTE1;
+const uint8_t light_false = PORTE2;
+const uint8_t light_player1 = PORTC4;
+const uint8_t light_player2 = PORTC5;
+const uint8_t light_player3 = PORTC6;
+const uint8_t light_player4 = PORTC7;
 
 /*
  Обозначение сегментов в индикаторе
